@@ -1,0 +1,5 @@
+{
+  "character": "Hero",
+  "text": "Welcome",
+  "choices": ["continue", "Exit"]
+}

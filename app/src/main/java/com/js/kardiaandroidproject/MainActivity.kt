@@ -1,71 +1,80 @@
 package com.js.kardiaandroidproject
 
+import DialogueLine
+import DialogueScreen
+import MainMenuScreen
+import MissionScreen
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.dp
-import com.js.kardiaandroidproject.ui.theme.KardiaAndroidProjectTheme
-import java.io.Console
+import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import sampleMap
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            KardiaAndroidProjectTheme {
-                HomeScreen()
-            }
+            MainNavigation()
         }
     }
 }
 
 @Composable
-fun HomeScreen() {
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            GameButton(onClick = {
-                Log.d("Tag", "Button clicked");
-            }, "Start Game")
-        }
-    }
-}
+fun MainNavigation() {
+    val navController = rememberNavController()
 
-@Composable
-fun GameButton(onClick: () -> Unit, text: String) {
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .size(width = 200.dp, height = 50.dp)
-            .pointerInput(Unit) {
-                detectTapGestures(onTap = { onClick() })
-            }
-    ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            drawRect(
-                color = Color.Blue,
-                size = Size(size.width, size.height)
+    NavHost(navController = navController, startDestination = "mainMenu") {
+        composable("mainMenu") {
+            MainMenuScreen(
+                navController = navController,
+                onStartGame = {
+                    GameState.updateMission(1) // Reset to first mission on new game
+                    //navController.navigate("missionScreen/1")
+                    navController.navigate("dialogueScreen/1")
+                },
+                onLoadGame = { navController.navigate("dialogueScreen") },  // Placeholder
+                onSettings = { /* Future implementation */ }
             )
         }
-        BasicText(
-            text = text,
-            modifier = Modifier.align(Alignment.Center),
-            style = androidx.compose.ui.text.TextStyle(color = Color.White)
-        )
+        composable("dialogueScreen/{scriptId}") { backStackEntry ->
+            val context = LocalContext.current
+            val scriptId = backStackEntry.arguments?.getString("scriptId")
+
+            if (scriptId != null) {
+                DialogueScreen(
+                    scriptId = scriptId,
+                    onChoiceSelected = { choiceIndex ->
+                        if (choiceIndex == 0) navController.navigate("missionScreen/1")
+                        else navController.popBackStack()
+                    },
+                    onNavigateToLogs = { /* Navigate to logs screen */ },
+                    onNavigateToSettings = { /* Navigate to settings screen */ },
+                    onNavigateToMainMenu = { navController.navigate("mainMenu") },
+                    onSaveGame = { GameState.saveGame(context) }
+                )
+            } else {
+                throw IllegalArgumentException("Invalid scriptId")
+            }
+        }
+        composable("missionScreen/{missionId}") { backStackEntry ->
+            val missionId = backStackEntry.arguments?.getString("missionId")?.toIntOrNull()
+            if(missionId != null) {
+                MissionScreen(
+                    mapData = sampleMap,
+                    onTileClicked = { row, col ->
+                        // Logic for tile clicks, e.g., move a unit or attack
+                    }
+                )
+            } else {
+                throw IllegalArgumentException("Invalid missionId")
+            }
+        }
     }
 }
